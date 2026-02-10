@@ -1,9 +1,8 @@
 import math
 import joblib
-import requests
 import streamlit as st
 import pandas as pd
-import os
+from huggingface_hub import hf_hub_download
 
 # --- CONFIG & STYLING ---
 st.set_page_config(page_title='IPL Score Predictor 2026', page_icon='🏏', layout="centered")
@@ -115,7 +114,9 @@ label, p {
 """, unsafe_allow_html=True)
 
 
-# --- APP LOGIC ---
+# =======================
+# SESSION RESET LOGIC
+# =======================
 if 'reset_key' not in st.session_state:
     st.session_state.reset_key = 0
 
@@ -124,41 +125,27 @@ def reset_all():
 
 
 # =======================
-# MODEL DOWNLOAD & LOAD
+# MODEL LOAD FROM HUGGING FACE
 # =======================
-MODEL_URL = "https://drive.google.com/uc?id=1JkQ_BrIQ6aTbU4bkI09FaJJ9STJYdqsc"
-MODEL_PATH = "ml_model.joblib"
-
-def download_from_gdrive(url, destination):
-    session = requests.Session()
-    response = session.get(url, stream=True, timeout=30)
-
-    for key, value in response.cookies.items():
-        if key.startswith("download_warning"):
-            url = f"{url}&confirm={value}"
-            response = session.get(url, stream=True, timeout=30)
-            break
-
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(32768):
-            if chunk:
-                f.write(chunk)
-
 @st.cache_resource
 def load_model():
-    if not os.path.exists(MODEL_PATH):
-        with st.spinner("📥 Downloading ML model..."):
-            download_from_gdrive(MODEL_URL, MODEL_PATH)
-    return joblib.load(MODEL_PATH)
+    model_path = hf_hub_download(
+        repo_id="VikasSharma04/IPL_Match_Score_Predictor",
+        filename="ml_model.joblib"
+    )
+    return joblib.load(model_path)
 
 try:
-    model = load_model()
+    with st.spinner("📥 Loading ML model (first run may take a minute)..."):
+        model = load_model()
 except Exception as e:
     st.error(f"❌ Failed to load ML model: {e}")
     st.stop()
 
 
-# --- TEAM MAPPING ---
+# =======================
+# TEAM MAPPING
+# =======================
 ui_to_model_map = {
     'Chennai Super Kings': 'Chennai Super Kings',
     'Delhi Capitals': 'Delhi Daredevils',
@@ -169,8 +156,13 @@ ui_to_model_map = {
     'Royal Challengers Bangalore': 'Royal Challengers Bangalore',
     'Sunrisers Hyderabad': 'Sunrisers Hyderabad'
 }
+
 model_teams = list(ui_to_model_map.values())
 
+
+# =======================
+# APP TITLE
+# =======================
 st.markdown(
     "<h1 style='text-align:center; color:white; font-size:3.5rem; text-shadow:4px 4px 10px black;'>🏏 IPL Score Predictor 2026</h1>",
     unsafe_allow_html=True
@@ -179,7 +171,9 @@ st.markdown(
 key = st.session_state.reset_key
 
 
-# --- TEAM SELECTORS ---
+# =======================
+# TEAM SELECTORS
+# =======================
 col_t1, col_t2 = st.columns(2)
 with col_t1:
     batting_team = st.selectbox('Select Batting Team', list(ui_to_model_map.keys()), key=f"bat_{key}")
@@ -189,7 +183,9 @@ with col_t2:
 st.markdown("<br>", unsafe_allow_html=True)
 
 
-# --- INPUT FIELDS ---
+# =======================
+# INPUT FIELDS
+# =======================
 c1, c2, c3 = st.columns(3)
 with c1:
     overs = st.number_input('Overs Completed', 5.1, 19.5, 10.0, 0.1, key=f"o_{key}")
@@ -199,19 +195,23 @@ with c3:
     wickets = st.number_input('Wickets Out', 0, 9, 2, 1, key=f"w_{key}")
 
 
-# --- LIVE RUN RATE CALCULATION ---
+# =======================
+# RUN RATE CALCULATION
+# =======================
 valid_overs = math.floor(overs) + (overs % 1) * 10 / 6
 crr = round(runs / valid_overs, 2) if valid_overs > 0 else 0.0
 
 st.markdown(f"""
-    <div style="display: flex; justify-content: space-around; margin: 20px 0;">
-        <div style="background:rgba(26, 38, 52, 0.8); padding:15px; border-radius:15px; width:45%; text-align:center; border:1px solid #3e4a59;">
-            <small style="color:#bdc3c7;">CURRENT RUN RATE</small><br><b style="font-size:30px; color:#00FF00;">{crr}</b>
-        </div>
-        <div style="background:rgba(26, 38, 52, 0.8); padding:15px; border-radius:15px; width:45%; text-align:center; border:1px solid #3e4a59;">
-            <small style="color:#bdc3c7;">PROJECTED TOTAL</small><br><b style="font-size:30px; color:#00FF00;">{int(crr * 20)}</b>
-        </div>
+<div style="display: flex; justify-content: space-around; margin: 20px 0;">
+    <div style="background:rgba(26, 38, 52, 0.8); padding:15px; border-radius:15px; width:45%; text-align:center; border:1px solid #3e4a59;">
+        <small style="color:#bdc3c7;">CURRENT RUN RATE</small><br>
+        <b style="font-size:30px; color:#00FF00;">{crr}</b>
     </div>
+    <div style="background:rgba(26, 38, 52, 0.8); padding:15px; border-radius:15px; width:45%; text-align:center; border:1px solid #3e4a59;">
+        <small style="color:#bdc3c7;">PROJECTED TOTAL</small><br>
+        <b style="font-size:30px; color:#00FF00;">{int(crr * 20)}</b>
+    </div>
+</div>
 """, unsafe_allow_html=True)
 
 
@@ -222,7 +222,9 @@ with col_p2:
     wickets_last_5 = st.number_input('Wickets in Last 5 Overs', 0, wickets, 1, 1, key=f"w5_{key}")
 
 
-# --- ACTION BUTTONS ---
+# =======================
+# ACTION BUTTONS
+# =======================
 st.markdown("<br>", unsafe_allow_html=True)
 btn1, btn2 = st.columns(2)
 with btn1:
@@ -231,7 +233,9 @@ with btn2:
     st.button('🧹 CLEAR ALL', on_click=reset_all, use_container_width=True)
 
 
-# --- PREDICTION ---
+# =======================
+# PREDICTION LOGIC
+# =======================
 if predict_btn:
     if batting_team == bowling_team:
         st.error("Teams must be different!")
@@ -258,15 +262,18 @@ if predict_btn:
 
         st.balloons()
         st.markdown(f"""
-            <div class="result-card">
-                <h3 style="color:white; margin:0;">ML PREDICTED TOTAL</h3>
-                <h1 style="color:#00FF00; font-size:75px; margin:10px 0;">{final_score - 5} — {final_score + 5}</h1>
-                <hr style="border:0.5px solid #3e4a59">
-                <h3 style="color:white; margin-top:10px;">WIN PROBABILITY:
-                    <span style="color:#FFD700;">{win_prob}%</span>
-                </h3>
-                <div style="background:#1a2634; border-radius:10px; height:20px; width:100%; margin-top:10px;">
-                    <div style="background:linear-gradient(to right, #00FF00, #FFD700); width:{win_prob}%; height:100%; border-radius:10px;"></div>
-                </div>
+        <div class="result-card">
+            <h3 style="color:white; margin:0;">ML PREDICTED TOTAL</h3>
+            <h1 style="color:#00FF00; font-size:75px; margin:10px 0;">
+                {final_score - 5} — {final_score + 5}
+            </h1>
+            <hr style="border:0.5px solid #3e4a59">
+            <h3 style="color:white; margin-top:10px;">
+                WIN PROBABILITY: <span style="color:#FFD700;">{win_prob}%</span>
+            </h3>
+            <div style="background:#1a2634; border-radius:10px; height:20px; width:100%; margin-top:10px;">
+                <div style="background:linear-gradient(to right, #00FF00, #FFD700);
+                            width:{win_prob}%; height:100%; border-radius:10px;"></div>
             </div>
+        </div>
         """, unsafe_allow_html=True)
