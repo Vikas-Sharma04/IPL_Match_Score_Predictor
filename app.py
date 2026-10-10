@@ -1,7 +1,7 @@
 import math
 
 import joblib
-import numpy as np
+from huggingface_hub import hf_hub_download
 import pandas as pd
 import streamlit as st
 
@@ -346,10 +346,20 @@ def reset_all():
     st.session_state.reset_key += 1
 
 
+@st.cache_resource
+def load_model():
+    model_path = hf_hub_download(
+        repo_id="VikasSharma04/IPL_Match_Score_Predictor", filename="ml_model.joblib"
+    )
+    return joblib.load(model_path)
+
+
 try:
-    model = joblib.load("ml_model.joblib")
-except:
-    st.error("Model file not found. Please ensure 'ml_model.joblib' is present.")
+    with st.spinner("📥 Loading ML model (first run may take a minute)..."):
+        model = load_model()
+except Exception as e:
+    st.error(f"❌ Failed to load ML model: {e}")
+    st.stop()
 
 ui_to_model_map = {
     "Chennai Super Kings": "Chennai Super Kings",
