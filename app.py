@@ -98,9 +98,12 @@ h1, h2, h3, p, label, [data-testid="stMarkdownContainer"] {
     font-weight: 600;
 }
 
+/* Comprehensive input and select styling for cross-version consistency */
 div[data-baseweb="select"] > div,
 div[data-baseweb="input"] > div,
-div[data-testid="stNumberInput"] div[data-baseweb="input"] {
+div[data-testid="stNumberInput"] div[data-baseweb="input"],
+div[data-testid="stNumberInput"] > div,
+div[data-testid="stSelectbox"] > div {
     background: #10251d !important;
     border: 1px solid rgba(160, 205, 180, .2) !important;
     border-radius: 11px !important;
@@ -108,8 +111,10 @@ div[data-testid="stNumberInput"] div[data-baseweb="input"] {
 }
 
 div[data-baseweb="select"] span,
-div[data-baseweb="input"] input {
+div[data-baseweb="input"] input,
+div[data-testid="stNumberInput"] input {
     color: var(--ink) !important;
+    background-color: transparent !important;
 }
 
 div[data-testid="stNumberInput"] button {
